@@ -7,6 +7,19 @@ interface BadgeDisplayProps {
   walletAddress: string;
 }
 
+const iconMap: Record<string, string> = {
+  "1": "🩸",
+  "2": "💯",
+  "3": "🍎",
+  "4": "🎯",
+  "5": "⚔️",
+  "first_blood": "🩸",
+  "century_club": "💯",
+  "apple_hoarder": "🍎",
+  "style_master": "🎯",
+  "challenger": "⚔️",
+};
+
 export function BadgeDisplay({ walletAddress }: BadgeDisplayProps) {
   const { getPlayerBadges, getAllBadgesInfo } = useGenLayer();
   const [badges, setBadges] = useState<BadgeType[]>([]);
@@ -64,7 +77,7 @@ export function BadgeDisplay({ walletAddress }: BadgeDisplayProps) {
             }`}
           >
             <div className={`text-2xl ${badge.unlocked ? '' : 'opacity-50'}`}>
-              {badge.icon || <ShieldAlert className="w-6 h-6 text-gray-500" />}
+              {iconMap[badge.icon] || iconMap[badge.id] || "🏆"}
             </div>
             <div>
               <div className={`text-sm font-bold ${badge.unlocked ? 'text-green-400' : 'text-gray-400'}`}>

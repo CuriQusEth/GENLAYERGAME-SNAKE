@@ -116,7 +116,7 @@ export default function App() {
                profile.game_stats.total_apples || apples,
                profile.game_stats.total_games || 1,
                styleData?.play_style || "unknown",
-               0
+               0 // TODO: challenge kazanıldığında 1 yap
             );
             addToast('✅ ACHIEVEMENTS SYNCED');
           }
