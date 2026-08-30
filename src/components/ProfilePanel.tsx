@@ -22,14 +22,22 @@ export function ProfilePanel({ walletAddress, onClose, onChallenge }: ProfilePan
 
   const fetchProfile = async () => {
     setLoading(true);
-    const data = await getFullProfile(walletAddress);
-    setProfile(data);
-    if (data) {
-      setEditName(data.display_name || '');
-      setEditBio(data.bio || '');
-      setEditAvatar(data.avatar_uri || '');
+    try {
+      console.log('[Profile] Fetching for', walletAddress);
+      const data = await getFullProfile(walletAddress);
+      console.log('[Profile] Received:', data);
+      setProfile(data);
+      if (data) {
+        setEditName(data.display_name || '');
+        setEditBio(data.bio || '');
+        setEditAvatar(data.avatar_uri || '');
+      }
+    } catch (err) {
+      console.error('[Profile] Fetch error:', err);
+      setProfile(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -39,12 +47,44 @@ export function ProfilePanel({ walletAddress, onClose, onChallenge }: ProfilePan
   }, [walletAddress]);
 
   const handleSave = async () => {
+    const name = (editName || 'Anonymous').trim();
+    const bio = (editBio || '').trim();
+    const avatar = (editAvatar || '').trim();
+
     try {
-      await updateProfile(walletAddress, editName, editBio, editAvatar);
+      console.log('[Profile] Saving...', { walletAddress, name, bio, avatar });
+      const tx = await updateProfile(walletAddress, name, bio, avatar);
+      console.log('[Profile] TX result:', tx);
+
+      // Optimistic UI – beklemeden göster
+      setProfile({
+        address: walletAddress,
+        display_name: name,
+        bio: bio,
+        avatar_uri: avatar,
+        joined_at: 0,
+        badges: [],
+        clan_id: '',
+        referrals: 0,
+        game_stats: {
+          best_score: 0,
+          total_apples: 0,
+          total_games: 0,
+          play_style: 'unknown',
+          confidence: 0,
+          pattern: 'unknown',
+          risk_level: 'unknown',
+          last_replay_hash: ''
+        }
+      });
       setIsEditing(false);
-      fetchProfile(); // Refresh
+      alert('Profile saved!');
+
+      // 3 sn sonra zincirden tekrar oku
+      setTimeout(() => fetchProfile(), 3000);
     } catch (error: any) {
-      alert("Failed to update profile: " + (error.message || "Unknown error"));
+      console.error('[Profile] Save error:', error);
+      alert('Failed: ' + (error?.message || String(error)));
     }
   };
 
