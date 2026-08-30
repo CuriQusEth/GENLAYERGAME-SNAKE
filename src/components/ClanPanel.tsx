@@ -48,8 +48,8 @@ export function ClanPanel({ walletAddress, onClose }: ClanPanelProps) {
     try {
       await createClan(walletAddress, newName, newTag, newDesc);
       fetchProfileAndClan();
-    } catch (err) {
-      alert("Failed to create clan");
+    } catch (err: any) {
+      alert("Failed to create clan: " + (err.message || "Unknown error"));
     }
   };
 
@@ -63,8 +63,8 @@ export function ClanPanel({ walletAddress, onClose }: ClanPanelProps) {
     try {
       await joinClan(walletAddress, cid);
       fetchProfileAndClan();
-    } catch (err) {
-      alert("Failed to join clan");
+    } catch (err: any) {
+      alert("Failed to join clan: " + (err.message || "Unknown error"));
     }
   };
 
@@ -73,8 +73,8 @@ export function ClanPanel({ walletAddress, onClose }: ClanPanelProps) {
       await leaveClan(walletAddress);
       setClan(null);
       fetchProfileAndClan();
-    } catch (err) {
-      alert("Failed to leave clan");
+    } catch (err: any) {
+      alert("Failed to leave clan: " + (err.message || "Unknown error"));
     }
   };
 

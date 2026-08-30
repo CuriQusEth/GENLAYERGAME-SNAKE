@@ -4,7 +4,7 @@ import { createClient, chains } from 'genlayer-js';
 const envAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
 const CONTRACT_ADDRESS = (envAddress && envAddress !== 'undefined') ? envAddress : '0x25067c997C3973f80a233fC9F3e1833486CaF1d5';
 const badgeEnvAddress = import.meta.env.VITE_BADGE_CONTRACT_ADDRESS;
-const BADGE_CONTRACT_ADDRESS = (badgeEnvAddress && badgeEnvAddress !== 'undefined') ? badgeEnvAddress : '0x2826fF535619d17BaA1281b3b48AB42Ce0682D11';
+const BADGE_CONTRACT_ADDRESS = (badgeEnvAddress && badgeEnvAddress !== 'undefined') ? badgeEnvAddress : '0x254Fbc1Be7419ECc88361fd121A049Cb603E6B70';
 const GENLAYER_API_KEY = import.meta.env.VITE_GENLAYER_API_KEY;
 
 const parseTransactionError = (error: any): Error => {
@@ -404,6 +404,7 @@ export function useGenLayer() {
     claimBadges,
     getPlayerBadges,
     getAllBadgesInfo,
+    getClient,
     isConnecting
   };
 }
