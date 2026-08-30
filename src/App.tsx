@@ -7,9 +7,12 @@ import { useState, useEffect, ReactNode } from 'react';
 import { GameCanvas } from './components/GameCanvas';
 import { Leaderboard } from './components/Leaderboard';
 import { ChallengePanel } from './components/ChallengePanel';
+import { ProfilePanel } from './components/ProfilePanel';
+import { ClanPanel } from './components/ClanPanel';
+import { ShareCard } from './components/ShareCard';
 import { useGenLayer } from './hooks/useGenLayer';
 import { useSkills } from './hooks/useSkills';
-import { Wallet, Trophy, Swords, Gamepad2, Info } from 'lucide-react';
+import { Wallet, Trophy, Swords, Gamepad2, Info, User, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Helper to safely get the provider without triggering proxy conflicts
@@ -19,7 +22,7 @@ const getProvider = () => {
   return (window as any).ethereum || null;
 };
 
-type Screen = 'home' | 'game' | 'leaderboard' | 'challenges';
+type Screen = 'home' | 'game' | 'leaderboard' | 'challenges' | 'profile' | 'clan';
 
 let toastCounter = 0;
 
@@ -28,8 +31,20 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [toasts, setToasts] = useState<{ id: string; message: string }[]>([]);
   const [aiInsight, setAiInsight] = useState<any>(null);
-  const { submitScore } = useGenLayer();
+  const [showShareCard, setShowShareCard] = useState(false);
+  const [lastGameStats, setLastGameStats] = useState<any>(null);
+  
+  const { submitScore, registerReferral, claimBadges, getFullProfile } = useGenLayer();
   const { classifyPlayStyle, analyzeReplay } = useSkills();
+
+  // Check for referral
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref && walletAddress) {
+      registerReferral(walletAddress, ref).catch(console.error);
+    }
+  }, [walletAddress]);
 
   const connectWallet = async () => {
     const provider = getProvider();
@@ -80,13 +95,41 @@ export default function App() {
       replay: replayData
     });
 
+    setLastGameStats({
+      score, apples, survival, playStyle: styleData?.play_style || 'Unknown', insight: replayData?.insight || 'No insight available', replayHash
+    });
+
     if (walletAddress && walletAddress !== 'undefined') {
       addToast('📡 TX SENT: SCORE COMMITTED');
       try {
         await submitScore(walletAddress, score, apples, survival, deathsNearWall, replayHash, replayData?.insight || 'No insight available');
         addToast('✅ SCORE RECORDED ON-CHAIN');
+        
+        try {
+          addToast('🏆 EVALUATING ACHIEVEMENTS...');
+          // Fetch current profile to get absolute latest stats
+          const profile = await getFullProfile(walletAddress);
+          if (profile) {
+            await claimBadges(
+               walletAddress,
+               profile.game_stats.best_score || score,
+               profile.game_stats.total_apples || apples,
+               profile.game_stats.total_games || 1,
+               styleData?.play_style || "unknown",
+               styleData?.confidence || 0,
+               false
+            );
+            addToast('✅ ACHIEVEMENTS SYNCED');
+          }
+        } catch (badgeErr) {
+          console.error("Badge evaluation failed:", badgeErr);
+        }
+
+        // Show share card after successful tx
+        setShowShareCard(true);
       } catch (err: any) {
         addToast(`❌ TX FAILED: ${err.message}`);
+        setShowShareCard(true); // Still show card even if tx fails so they can share it
       }
     } else {
       addToast('❌ WALLET NOT CONNECTED');
@@ -106,7 +149,7 @@ export default function App() {
 
         <div className="flex items-center gap-4">
           {walletAddress ? (
-            <div className="flex items-center gap-2 px-4 py-2 border border-matrix/50 bg-matrix/10 rounded-sm font-mono text-xs">
+            <div className="flex items-center gap-2 px-4 py-2 border border-matrix/50 bg-matrix/10 rounded-sm font-mono text-xs cursor-pointer hover:bg-matrix/20" onClick={() => setCurrentScreen('profile')}>
               <div className="w-2 h-2 rounded-full bg-matrix animate-pulse" />
               {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
             </div>
@@ -131,7 +174,7 @@ export default function App() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="text-center max-w-2xl"
+              className="text-center max-w-3xl"
             >
               <h2 className="text-5xl mb-8 arcade-font crt-flicker leading-tight">PROOF OF PLAY</h2>
               <p className="mb-12 text-matrix/70 leading-relaxed font-mono">
@@ -139,10 +182,10 @@ export default function App() {
                 Eat apples, survive the void, and prove your skill on the GenLayer testnet.
               </p>
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <MenuButton 
                   icon={<Gamepad2 />} 
-                  label="START GAME" 
+                  label="START" 
                   onClick={() => {
                     if (walletAddress) {
                       setAiInsight(null);
@@ -154,12 +197,25 @@ export default function App() {
                 />
                 <MenuButton 
                   icon={<Trophy />} 
-                  label="LEADERBOARD" 
+                  label="RANKS" 
                   onClick={() => setCurrentScreen('leaderboard')} 
                 />
                 <MenuButton 
+                  icon={<User />} 
+                  label="PROFILE" 
+                  onClick={() => walletAddress ? setCurrentScreen('profile') : connectWallet()} 
+                />
+                <MenuButton 
+                  icon={<Users />} 
+                  label="CLANS" 
+                  onClick={() => walletAddress ? setCurrentScreen('clan') : connectWallet()} 
+                />
+              </div>
+
+              <div className="mt-8 flex justify-center">
+                 <MenuButton 
                   icon={<Swords />} 
-                  label="CHALLENGES" 
+                  label="PvP CHALLENGES" 
                   onClick={() => walletAddress ? setCurrentScreen('challenges') : connectWallet()} 
                 />
               </div>
@@ -220,8 +276,48 @@ export default function App() {
               <ChallengePanel walletAddress={walletAddress || ''} />
             </motion.div>
           )}
+
+          {currentScreen === 'profile' && walletAddress && (
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full flex flex-col items-center"
+            >
+              <ProfilePanel 
+                walletAddress={walletAddress} 
+                onClose={() => setCurrentScreen('home')} 
+                onChallenge={(addr) => {
+                   // In a real app we'd pass the pre-filled challenge down to ChallengePanel
+                   setCurrentScreen('challenges');
+                }}
+              />
+            </motion.div>
+          )}
+
+          {currentScreen === 'clan' && walletAddress && (
+            <motion.div
+              key="clan"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full flex flex-col items-center"
+            >
+              <ClanPanel walletAddress={walletAddress} onClose={() => setCurrentScreen('home')} />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
+
+      {/* Share Card Overlay */}
+      {showShareCard && lastGameStats && walletAddress && (
+        <ShareCard 
+          {...lastGameStats}
+          walletAddress={walletAddress}
+          onClose={() => setShowShareCard(false)}
+        />
+      )}
 
       {/* Toast Notifications */}
       <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-50">

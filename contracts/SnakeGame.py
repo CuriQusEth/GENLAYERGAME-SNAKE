@@ -43,11 +43,34 @@ class SnakeGame(gl.Contract):
     challenge_commentary:       TreeMap[str, str]
     challenge_counter:          u256
 
+    # ─── Social & Retention Storage ──────────────────────────────────
+    # Profiles
+    player_display_name: TreeMap[str, str]
+    player_bio:          TreeMap[str, str]
+    player_avatar_uri:   TreeMap[str, str]
+    player_joined_at:    TreeMap[str, u256]
+    player_badges:       TreeMap[str, str] # JSON string of badges
+    
+    # Clans
+    clan_counter:        u256
+    clan_owner:          TreeMap[str, str]
+    clan_name:           TreeMap[str, str]
+    clan_tag:            TreeMap[str, str]
+    clan_description:    TreeMap[str, str]
+    clan_members:        TreeMap[str, str] # JSON list of addresses
+    clan_score:          TreeMap[str, u256]
+    player_clan:         TreeMap[str, str] # player_address -> clan_id
+
+    # Referrals
+    player_referrer:       TreeMap[str, str]
+    player_referral_count: TreeMap[str, u256]
+
     # ─── Constructor ──────────────────────────────────────────────────
     def __init__(self) -> None:
         self.leaderboard_addresses = DynArray[str]([])
         self.leaderboard_scores    = DynArray[u256]([])
         self.challenge_counter     = u256(0)
+        self.clan_counter          = u256(0)
 
     # ═════════════════════════════════════════════════════════════════
     #  SCORE REGISTRY
@@ -291,3 +314,185 @@ class SnakeGame(gl.Contract):
             f'"commentary":"{self.challenge_commentary.get(cid,"")}"'
             f'}}'
         )
+
+    # ═════════════════════════════════════════════════════════════════
+    #  SOCIAL & RETENTION (Profiles, Clans, Referrals)
+    # ═════════════════════════════════════════════════════════════════
+
+    @gl.public.write
+    def update_profile(self, player: str, display_name: str, bio: str, avatar_uri: str) -> None:
+        """Updates a player's profile info. Gives 'early_adopter' badge on first setup."""
+        self.player_display_name[player] = display_name
+        self.player_bio[player] = bio
+        self.player_avatar_uri[player] = avatar_uri
+        
+        # Check if first time
+        if self.player_joined_at.get(player, u256(0)) == u256(0):
+            import time
+            self.player_joined_at[player] = u256(int(time.time()))
+            
+            # Add early adopter badge
+            import json
+            badges_str = self.player_badges.get(player, "[]")
+            try:
+                badges = json.loads(badges_str)
+            except:
+                badges = []
+            
+            if "Early Adopter" not in badges:
+                badges.append("Early Adopter")
+                self.player_badges[player] = json.dumps(badges)
+
+    @gl.public.view
+    def get_full_profile(self, player: str) -> str:
+        """Returns the complete social and game stats profile."""
+        import json
+        
+        # Base stats
+        best = self.player_best_score.get(player, u256(0))
+        apples = self.player_total_apples.get(player, u256(0))
+        games = self.player_total_games.get(player, u256(0))
+        style = self.player_play_style.get(player, "Unknown")
+        confidence = self.player_confidence.get(player, u256(0))
+        pattern = self.player_pattern.get(player, "Unknown")
+        risk_level = self.player_risk_level.get(player, "Unknown")
+        replay = self.player_replay_hash.get(player, "")
+        
+        # Social
+        display_name = self.player_display_name.get(player, "")
+        bio = self.player_bio.get(player, "")
+        avatar = self.player_avatar_uri.get(player, "")
+        joined = self.player_joined_at.get(player, u256(0))
+        badges = self.player_badges.get(player, "[]")
+        
+        # Clan
+        clan_id = self.player_clan.get(player, "")
+        
+        # Referrals
+        refs = self.player_referral_count.get(player, u256(0))
+
+        # We construct a clean dict and dump it
+        profile_data = {
+            "address": player,
+            "display_name": display_name,
+            "bio": bio,
+            "avatar_uri": avatar,
+            "joined_at": int(joined),
+            "badges": json.loads(badges) if badges != "[]" else [],
+            "clan_id": clan_id,
+            "referrals": int(refs),
+            "game_stats": {
+                "best_score": int(best),
+                "total_apples": int(apples),
+                "total_games": int(games),
+                "play_style": style,
+                "confidence": int(confidence),
+                "pattern": pattern,
+                "risk_level": risk_level,
+                "last_replay_hash": replay
+            }
+        }
+        return json.dumps(profile_data)
+
+    @gl.public.write
+    def create_clan(self, player: str, name: str, tag: str, description: str) -> str:
+        self.clan_counter = self.clan_counter + u256(1)
+        cid = str(self.clan_counter)
+        
+        self.clan_owner[cid] = player
+        self.clan_name[cid] = name
+        self.clan_tag[cid] = tag
+        self.clan_description[cid] = description
+        self.clan_score[cid] = u256(0)
+        
+        import json
+        self.clan_members[cid] = json.dumps([player])
+        self.player_clan[player] = cid
+        
+        return cid
+
+    @gl.public.write
+    def join_clan(self, player: str, clan_id: str) -> None:
+        """Adds a player to a clan if they aren't already in one."""
+        current_clan = self.player_clan.get(player, "")
+        if current_clan != "":
+            return # Already in a clan
+            
+        import json
+        members_str = self.clan_members.get(clan_id, "[]")
+        try:
+            members = json.loads(members_str)
+        except:
+            members = []
+            
+        if player not in members and len(members) < 50:
+            members.append(player)
+            self.clan_members[clan_id] = json.dumps(members)
+            self.player_clan[player] = clan_id
+            
+            # Add their best score to clan total
+            best = self.player_best_score.get(player, u256(0))
+            self.clan_score[clan_id] = self.clan_score.get(clan_id, u256(0)) + best
+
+    @gl.public.write
+    def leave_clan(self, player: str) -> None:
+        clan_id = self.player_clan.get(player, "")
+        if clan_id == "":
+            return
+            
+        import json
+        members_str = self.clan_members.get(clan_id, "[]")
+        try:
+            members = json.loads(members_str)
+        except:
+            members = []
+            
+        if player in members:
+            members.remove(player)
+            self.clan_members[clan_id] = json.dumps(members)
+            self.player_clan[player] = ""
+            
+            # Subtract best score
+            best = self.player_best_score.get(player, u256(0))
+            current_clan_score = self.clan_score.get(clan_id, u256(0))
+            if current_clan_score >= best:
+                self.clan_score[clan_id] = current_clan_score - best
+            else:
+                self.clan_score[clan_id] = u256(0)
+
+    @gl.public.view
+    def get_clan(self, clan_id: str) -> str:
+        import json
+        clan_data = {
+            "clan_id": clan_id,
+            "name": self.clan_name.get(clan_id, ""),
+            "tag": self.clan_tag.get(clan_id, ""),
+            "description": self.clan_description.get(clan_id, ""),
+            "owner": self.clan_owner.get(clan_id, ""),
+            "score": int(self.clan_score.get(clan_id, u256(0))),
+            "members": json.loads(self.clan_members.get(clan_id, "[]"))
+        }
+        return json.dumps(clan_data)
+
+    @gl.public.write
+    def register_referral(self, player: str, referrer: str) -> None:
+        """Registers a referral if the player doesn't already have one."""
+        if player == referrer:
+            return
+            
+        current_ref = self.player_referrer.get(player, "")
+        if current_ref == "":
+            self.player_referrer[player] = referrer
+            self.player_referral_count[referrer] = self.player_referral_count.get(referrer, u256(0)) + u256(1)
+            
+            # Reward: Give the referrer a badge
+            import json
+            badges_str = self.player_badges.get(referrer, "[]")
+            try:
+                badges = json.loads(badges_str)
+            except:
+                badges = []
+            
+            if "Top Inviter" not in badges:
+                badges.append("Top Inviter")
+                self.player_badges[referrer] = json.dumps(badges)
