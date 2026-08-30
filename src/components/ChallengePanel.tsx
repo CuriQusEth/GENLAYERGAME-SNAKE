@@ -26,6 +26,10 @@ export const ChallengePanel: React.FC<ChallengePanelProps> = ({ walletAddress })
 
   const handleSend = async () => {
     if (!opponent || !walletAddress) return;
+    if (!opponent.startsWith('0x') || opponent.length !== 42) {
+      alert("Invalid opponent address");
+      return;
+    }
     try {
       const tx = await createChallenge(walletAddress, opponent);
       alert('Challenge sent to chain!');

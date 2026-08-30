@@ -51,11 +51,11 @@ export default function App() {
     if (provider) {
       try {
         const accounts = await provider.request({ method: 'eth_requestAccounts' });
-        if (accounts && accounts.length > 0 && accounts[0]) {
+        if (accounts && accounts.length > 0 && accounts[0] && accounts[0].startsWith('0x')) {
           setWalletAddress(accounts[0]);
           addToast('WALLET CONNECTED: ' + accounts[0].slice(0, 6));
         } else {
-          addToast('❌ NO ACCOUNTS FOUND');
+          addToast('❌ NO VALID ACCOUNTS FOUND');
         }
       } catch (err) {
         console.error('Wallet connection failed', err);

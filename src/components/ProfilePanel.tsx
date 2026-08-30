@@ -43,8 +43,8 @@ export function ProfilePanel({ walletAddress, onClose, onChallenge }: ProfilePan
       await updateProfile(walletAddress, editName, editBio, editAvatar);
       setIsEditing(false);
       fetchProfile(); // Refresh
-    } catch (error) {
-      alert("Failed to update profile.");
+    } catch (error: any) {
+      alert("Failed to update profile: " + (error.message || "Unknown error"));
     }
   };
 
