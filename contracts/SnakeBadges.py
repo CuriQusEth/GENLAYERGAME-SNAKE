@@ -2,16 +2,13 @@
 
 from genlayer import *
 
+
 class SnakeBadges(gl.Contract):
-    # player -> badge_id -> unlocked (1 = true)
-    player_badges: TreeMap[str, TreeMap[str, u256]]
-    
-    # Optional: track when it was unlocked
-    badge_unlocked_at: TreeMap[str, TreeMap[str, u256]]  # timestamp or block
+
+    player_badges: TreeMap[str, str]
 
     def __init__(self) -> None:
-        self.player_badges = TreeMap[str, TreeMap[str, u256]]()
-        self.badge_unlocked_at = TreeMap[str, TreeMap[str, u256]]()
+        pass
 
     @gl.public.write
     def claim_badges(
@@ -21,66 +18,74 @@ class SnakeBadges(gl.Contract):
         total_apples: u256,
         total_games: u256,
         play_style: str,
-        confidence: u256,
-        has_won_challenge: bool,
+        has_won_challenge: u256,
     ) -> str:
-        """
-        Player (or frontend) submits current stats.
-        Contract evaluates and unlocks eligible badges.
-        Returns JSON list of newly unlocked badges.
-        """
-        if player not in self.player_badges:
-            self.player_badges[player] = TreeMap[str, u256]()
 
-        badges = self.player_badges[player]
-        newly_unlocked = []
+        current = self.player_badges.get(player, "")
+        newly = ""
 
-        # 1. First Blood
-        if total_games >= u256(1) and badges.get("first_blood", u256(0)) == u256(0):
-            badges["first_blood"] = u256(1)
-            newly_unlocked.append("first_blood")
+        if total_games >= u256(1):
+            if current == "":
+                current = "first_blood"
+                newly = "first_blood"
+            else:
+                current = current + ",first_blood"
+                newly = "first_blood"
 
-        # 2. Century Club
-        if best_score >= u256(100) and badges.get("century_club", u256(0)) == u256(0):
-            badges["century_club"] = u256(1)
-            newly_unlocked.append("century_club")
+        if best_score >= u256(100):
+            if current == "":
+                current = "century_club"
+            else:
+                current = current + ",century_club"
+            if newly == "":
+                newly = "century_club"
+            else:
+                newly = newly + ",century_club"
 
-        # 3. Apple Hoarder
-        if total_apples >= u256(50) and badges.get("apple_hoarder", u256(0)) == u256(0):
-            badges["apple_hoarder"] = u256(1)
-            newly_unlocked.append("apple_hoarder")
+        if total_apples >= u256(50):
+            if current == "":
+                current = "apple_hoarder"
+            else:
+                current = current + ",apple_hoarder"
+            if newly == "":
+                newly = "apple_hoarder"
+            else:
+                newly = newly + ",apple_hoarder"
 
-        # 4. Style Master
-        if (play_style != "unknown" and confidence >= u256(70) 
-            and badges.get("style_master", u256(0)) == u256(0)):
-            badges["style_master"] = u256(1)
-            newly_unlocked.append("style_master")
+        if play_style != "unknown":
+            if current == "":
+                current = "style_master"
+            else:
+                current = current + ",style_master"
+            if newly == "":
+                newly = "style_master"
+            else:
+                newly = newly + ",style_master"
 
-        # 5. Challenger
-        if has_won_challenge and badges.get("challenger", u256(0)) == u256(0):
-            badges["challenger"] = u256(1)
-            newly_unlocked.append("challenger")
+        if has_won_challenge == u256(1):
+            if current == "":
+                current = "challenger"
+            else:
+                current = current + ",challenger"
+            if newly == "":
+                newly = "challenger"
+            else:
+                newly = newly + ",challenger"
 
-        return "[" + ",".join([f'"{b}"' for b in newly_unlocked]) + "]"
+        self.player_badges[player] = current
+        return newly
 
     @gl.public.view
     def get_player_badges(self, player: str) -> str:
-        if player not in self.player_badges:
-            return "[]"
-        
-        unlocked = []
-        badges = self.player_badges[player]
-        for badge_id in ["first_blood", "century_club", "apple_hoarder", "style_master", "challenger"]:
-            if badges.get(badge_id, u256(0)) == u256(1):
-                unlocked.append(f'"{badge_id}"')
-        return "[" + ",".join(unlocked) + "]"
+        return self.player_badges.get(player, "")
 
     @gl.public.view
     def get_all_badges_info(self) -> str:
-        return '''[
-            {"id":"first_blood","name":"First Blood","description":"Submit your first score on-chain","icon":"🩸"},
-            {"id":"century_club","name":"Century Club","description":"Reach a score of 100 or higher","icon":"💯"},
-            {"id":"apple_hoarder","name":"Apple Hoarder","description":"Eat 50 apples in total","icon":"🍎"},
-            {"id":"style_master","name":"Style Master","description":"Receive a clear AI play-style (70%+ confidence)","icon":"🎯"},
-            {"id":"challenger","name":"Challenger","description":"Win at least one PvP challenge","icon":"⚔️"}
-        ]'''
+        result = "["
+        result = result + '{"id":"first_blood","name":"First Blood","description":"First score on-chain"},'
+        result = result + '{"id":"century_club","name":"Century Club","description":"Score 100 or higher"},'
+        result = result + '{"id":"apple_hoarder","name":"Apple Hoarder","description":"Eat 50 apples total"},'
+        result = result + '{"id":"style_master","name":"Style Master","description":"Clear AI play style"},'
+        result = result + '{"id":"challenger","name":"Challenger","description":"Win a PvP challenge"}'
+        result = result + "]"
+        return result

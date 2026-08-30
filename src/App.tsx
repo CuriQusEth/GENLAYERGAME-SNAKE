@@ -116,8 +116,7 @@ export default function App() {
                profile.game_stats.total_apples || apples,
                profile.game_stats.total_games || 1,
                styleData?.play_style || "unknown",
-               styleData?.confidence || 0,
-               false
+               0
             );
             addToast('✅ ACHIEVEMENTS SYNCED');
           }

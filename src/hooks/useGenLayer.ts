@@ -4,7 +4,7 @@ import { createClient, chains } from 'genlayer-js';
 const envAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
 const CONTRACT_ADDRESS = (envAddress && envAddress !== 'undefined') ? envAddress : '0x25067c997C3973f80a233fC9F3e1833486CaF1d5';
 const badgeEnvAddress = import.meta.env.VITE_BADGE_CONTRACT_ADDRESS;
-const BADGE_CONTRACT_ADDRESS = (badgeEnvAddress && badgeEnvAddress !== 'undefined') ? badgeEnvAddress : '0x9999999999999999999999999999999999999999'; // Placeholder or deployment needed
+const BADGE_CONTRACT_ADDRESS = (badgeEnvAddress && badgeEnvAddress !== 'undefined') ? badgeEnvAddress : '0x2826fF535619d17BaA1281b3b48AB42Ce0682D11';
 const GENLAYER_API_KEY = import.meta.env.VITE_GENLAYER_API_KEY;
 
 const parseTransactionError = (error: any): Error => {
@@ -336,8 +336,7 @@ export function useGenLayer() {
     totalApples: number,
     totalGames: number,
     playStyle: string,
-    confidence: number,
-    hasWonChallenge: boolean
+    hasWonChallenge: number
   ) => {
     setIsConnecting(true);
     try {
@@ -346,7 +345,7 @@ export function useGenLayer() {
         address: BADGE_CONTRACT_ADDRESS,
         account: player,
         functionName: 'claim_badges',
-        args: [player, BigInt(bestScore), BigInt(totalApples), BigInt(totalGames), playStyle, BigInt(confidence), hasWonChallenge],
+        args: [player, BigInt(bestScore), BigInt(totalApples), BigInt(totalGames), playStyle, BigInt(hasWonChallenge)],
       });
       return tx;
     } catch (error: any) {
@@ -365,7 +364,8 @@ export function useGenLayer() {
         functionName: 'get_player_badges',
         args: [address],
       });
-      return JSON.parse(result as string) as string[];
+      const badgeStr = result as string;
+      return badgeStr ? badgeStr.split(',').filter(Boolean) : [];
     } catch (error) {
       console.error('Error fetching badges:', error);
       return [];
