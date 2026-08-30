@@ -85,8 +85,8 @@ export default function App() {
       try {
         await submitScore(walletAddress, score, apples, survival, deathsNearWall, replayHash, replayData?.insight || 'No insight available');
         addToast('✅ SCORE RECORDED ON-CHAIN');
-      } catch (err) {
-        addToast('❌ TX FAILED');
+      } catch (err: any) {
+        addToast(`❌ TX FAILED: ${err.message}`);
       }
     } else {
       addToast('❌ WALLET NOT CONNECTED');

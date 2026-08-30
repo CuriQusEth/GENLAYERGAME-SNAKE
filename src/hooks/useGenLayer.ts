@@ -5,6 +5,28 @@ const envAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
 const CONTRACT_ADDRESS = (envAddress && envAddress !== 'undefined') ? envAddress : '0x25067c997C3973f80a233fC9F3e1833486CaF1d5';
 const GENLAYER_API_KEY = import.meta.env.VITE_GENLAYER_API_KEY;
 
+const parseTransactionError = (error: any): Error => {
+  const errorMessage = error?.message?.toLowerCase() || '';
+  
+  if (errorMessage.includes('deployment_not_found') || errorMessage.includes('404: not_found')) {
+    return new Error('Cüzdan RPC Hatası: Cüzdanınızdaki (Metamask/Rabby) GenLayer ağının RPC adresi artık geçersiz. Lütfen cüzdan ayarlarından GenLayer Studionet ağı için RPC URL adresini "https://studio.genlayer.com/api" olarak güncelleyin.');
+  }
+  
+  if (errorMessage.includes('user rejected') || errorMessage.includes('denied transaction') || errorMessage.includes('rejected the request')) {
+    return new Error('İşlem kullanıcı tarafından reddedildi.');
+  }
+  
+  if (errorMessage.includes('insufficient funds') || errorMessage.includes('insufficient balance')) {
+    return new Error('İşlem için yeterli bakiye (gas) bulunmuyor.');
+  }
+  
+  if (errorMessage.includes('revert')) {
+    return new Error('İşlem akıllı kontrat tarafından reddedildi (Revert).');
+  }
+
+  return new Error(error?.shortMessage || error?.message || 'İşlem sırasında bilinmeyen bir hata oluştu.');
+};
+
 export function useGenLayer() {
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -74,7 +96,7 @@ export function useGenLayer() {
       // Log more details if available
       if (error.data) console.error('Error data:', error.data);
       if (error.message) console.error('Error message:', error.message);
-      throw error;
+      throw parseTransactionError(error);
     } finally {
       setIsConnecting(false);
     }
@@ -120,9 +142,9 @@ export function useGenLayer() {
         args: [challenger, opponent],
       });
       return tx;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating challenge:', error);
-      throw error;
+      throw parseTransactionError(error);
     } finally {
       setIsConnecting(false);
     }
@@ -139,9 +161,9 @@ export function useGenLayer() {
         args: [challengeId, player, BigInt(score)],
       });
       return tx;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting challenge score:', error);
-      throw error;
+      throw parseTransactionError(error);
     } finally {
       setIsConnecting(false);
     }
@@ -158,9 +180,9 @@ export function useGenLayer() {
         args: [challengeId],
       });
       return tx;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error resolving challenge:', error);
-      throw error;
+      throw parseTransactionError(error);
     } finally {
       setIsConnecting(false);
     }

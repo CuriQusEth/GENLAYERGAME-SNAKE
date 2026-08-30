@@ -20,8 +20,9 @@ export const ChallengePanel: React.FC<ChallengePanelProps> = ({ walletAddress })
       await createChallenge(walletAddress, opponent);
       setOpponent('');
       alert('Challenge sent to chain!');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create challenge', err);
+      alert(`Failed to create challenge: ${err.message}`);
     }
   };
 
