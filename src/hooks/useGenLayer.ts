@@ -1,5 +1,33 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { createClient, chains } from 'genlayer-js';
+
+export const STUDIO_NEXT_CHAIN_ID = 61997;
+export const STUDIO_NEXT_RPC_URL = import.meta.env.VITE_GENLAYER_RPC_URL || 'https://studio-dev.genlayer.com/api';
+export const STUDIO_NEXT_CHAIN_HEX = '0xf22d'; // 61997 in hex
+
+export const studioNextChain = {
+  ...chains.studionet,
+  id: STUDIO_NEXT_CHAIN_ID,
+  isStudio: true,
+  name: 'GenLayer Studio Next',
+  network: 'studio-next',
+  rpcUrls: {
+    default: { http: [STUDIO_NEXT_RPC_URL] },
+    public: { http: [STUDIO_NEXT_RPC_URL] },
+  },
+  nativeCurrency: {
+    name: 'GEN Token',
+    symbol: 'GEN',
+    decimals: 18,
+  },
+  blockExplorers: {
+    default: {
+      name: 'GenLayer Explorer',
+      url: 'https://genlayer-explorer.vercel.app',
+    },
+  },
+  testnet: true,
+};
 
 const envAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
 const CONTRACT_ADDRESS = (envAddress && envAddress !== 'undefined') ? envAddress : '0xc0e6b7C203cbebb17402aA2C097c9669d2744f8a';
@@ -11,7 +39,7 @@ const parseTransactionError = (error: any): Error => {
   const errorMessage = error?.message?.toLowerCase() || '';
   
   if (errorMessage.includes('deployment_not_found') || errorMessage.includes('404: not_found')) {
-    return new Error('Cüzdan RPC Hatası: Cüzdanınızdaki (Metamask/Rabby) GenLayer ağının RPC adresi artık geçersiz. Lütfen cüzdan ayarlarından GenLayer Studionet ağı için RPC URL adresini "https://studio.genlayer.com/api" olarak güncelleyin.');
+    return new Error('Cüzdan RPC Hatası: Cüzdanınızdaki (Metamask/Rabby) GenLayer ağının RPC adresi artık geçersiz. Lütfen cüzdan ayarlarından GenLayer Studio Next ağı için RPC URL adresini "https://studio-dev.genlayer.com/api" olarak güncelleyin.');
   }
   
   if (errorMessage.includes('user rejected') || errorMessage.includes('denied transaction') || errorMessage.includes('rejected the request')) {
@@ -31,11 +59,85 @@ const parseTransactionError = (error: any): Error => {
 
 export function useGenLayer() {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [currentChainId, setCurrentChainId] = useState<number | null>(null);
+
+  // Check current connected network
+  const checkCurrentNetwork = useCallback(async () => {
+    if (typeof window !== 'undefined' && (window as any).ethereum) {
+      try {
+        const hexChainId = await (window as any).ethereum.request({ method: 'eth_chainId' });
+        const parsed = parseInt(hexChainId, 16);
+        setCurrentChainId(parsed);
+        return parsed;
+      } catch (err) {
+        console.warn('Could not read eth_chainId:', err);
+      }
+    }
+    return null;
+  }, []);
+
+  useEffect(() => {
+    checkCurrentNetwork();
+    if (typeof window !== 'undefined' && (window as any).ethereum?.on) {
+      const handleChainChanged = (chainIdHex: string) => {
+        setCurrentChainId(parseInt(chainIdHex, 16));
+      };
+      (window as any).ethereum.on('chainChanged', handleChainChanged);
+      return () => {
+        (window as any).ethereum.removeListener?.('chainChanged', handleChainChanged);
+      };
+    }
+  }, [checkCurrentNetwork]);
+
+  // Switch or Add Studio Next (chain 61997) to connected wallet
+  const switchToStudioNext = useCallback(async () => {
+    if (typeof window === 'undefined' || !(window as any).ethereum) {
+      throw new Error('Web3 cüzdanı bulunamadı. Lütfen MetaMask veya uyumlu bir cüzdan kurun.');
+    }
+    const provider = (window as any).ethereum;
+    try {
+      await provider.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: STUDIO_NEXT_CHAIN_HEX }],
+      });
+      setCurrentChainId(STUDIO_NEXT_CHAIN_ID);
+      return true;
+    } catch (switchError: any) {
+      // 4902 error code means the chain has not been added to MetaMask
+      if (switchError.code === 4902 || switchError?.data?.originalError?.code === 4902) {
+        try {
+          await provider.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: STUDIO_NEXT_CHAIN_HEX,
+                chainName: 'GenLayer Studio Next (61997)',
+                rpcUrls: [STUDIO_NEXT_RPC_URL],
+                nativeCurrency: {
+                  name: 'GEN',
+                  symbol: 'GEN',
+                  decimals: 18,
+                },
+                blockExplorerUrls: ['https://genlayer-explorer.vercel.app'],
+              },
+            ],
+          });
+          setCurrentChainId(STUDIO_NEXT_CHAIN_ID);
+          return true;
+        } catch (addError) {
+          console.error('Failed to add Studio Next chain:', addError);
+          throw addError;
+        }
+      }
+      console.error('Failed to switch to Studio Next chain:', switchError);
+      throw switchError;
+    }
+  }, []);
 
   const getClient = useCallback(() => {
     const provider = typeof window !== 'undefined' ? (window as any).ethereum : null;
     const config: any = { 
-      chain: chains.studionet,
+      chain: studioNextChain,
     };
     
     if (provider) {
@@ -47,7 +149,7 @@ export function useGenLayer() {
     }
     
     if (GENLAYER_API_KEY) {
-      config.endpoint = `https://studio.genlayer.com/api?api_key=${GENLAYER_API_KEY}`;
+      config.endpoint = `${STUDIO_NEXT_RPC_URL}?api_key=${GENLAYER_API_KEY}`;
     }
     
     return (createClient as any)(config);
@@ -405,6 +507,9 @@ export function useGenLayer() {
     getPlayerBadges,
     getAllBadgesInfo,
     getClient,
-    isConnecting
+    isConnecting,
+    currentChainId,
+    switchToStudioNext,
+    isStudioNext: currentChainId === STUDIO_NEXT_CHAIN_ID
   };
 }

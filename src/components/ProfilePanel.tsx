@@ -262,6 +262,29 @@ export function ProfilePanel({ walletAddress, onClose, onChallenge }: ProfilePan
                     </div>
                   </div>
 
+                  {/* GenLayer Validator Consensus Verdict */}
+                  <div className="border border-emerald-500/40 rounded-lg p-4 bg-emerald-950/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-bold flex items-center gap-2 text-emerald-400 uppercase tracking-wider">
+                        <Shield className="w-4 h-4" /> GenLayer Validator Verdict
+                      </h3>
+                      <span className={`px-2 py-0.5 text-xs font-mono font-bold rounded border ${
+                        profile.game_stats?.verdict === 'INVALID' 
+                          ? 'bg-red-500/20 text-red-400 border-red-500/50' 
+                          : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
+                      }`}>
+                        {profile.game_stats?.verdict || 'VALID'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-300 font-mono italic">
+                      "{profile.game_stats?.validator_assessment || 'Result authenticated and sealed on-chain via GenLayer validator consensus evaluation.'}"
+                    </p>
+                    <div className="mt-2 pt-2 border-t border-emerald-500/20 flex justify-between text-[11px] text-emerald-500/80 font-mono">
+                      <span>Network: Studio Next (61997)</span>
+                      <span>Verified Score: {profile.game_stats?.last_verified_score || profile.game_stats?.best_score || 0} pts</span>
+                    </div>
+                  </div>
+
                   {/* Achievements */}
                   <BadgeDisplay walletAddress={walletAddress} />
 

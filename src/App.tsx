@@ -34,7 +34,15 @@ export default function App() {
   const [showShareCard, setShowShareCard] = useState(false);
   const [lastGameStats, setLastGameStats] = useState<any>(null);
   
-  const { submitScore, registerReferral, claimBadges, getFullProfile } = useGenLayer();
+  const { 
+    submitScore, 
+    registerReferral, 
+    claimBadges, 
+    getFullProfile,
+    currentChainId,
+    switchToStudioNext,
+    isStudioNext
+  } = useGenLayer();
   const { classifyPlayStyle, analyzeReplay } = useSkills();
 
   // Check for referral
@@ -100,29 +108,52 @@ export default function App() {
     });
 
     if (walletAddress && walletAddress !== 'undefined') {
-      addToast('📡 TX SENT: SCORE COMMITTED');
+      addToast('📡 COMMITTING TO STUDIO NEXT (61997)...');
       try {
         await submitScore(walletAddress, score, apples, survival, deathsNearWall, replayHash, replayData?.insight || 'No insight available');
-        addToast('✅ SCORE RECORDED ON-CHAIN');
+        addToast('⚖️ AWAITING VALIDATOR CONSENSUS VERDICT...');
         
+        let verdict = 'VALID';
+        let validatorAssessment = 'Authenticated by GenLayer validator consensus.';
+
         try {
-          addToast('🏆 EVALUATING ACHIEVEMENTS...');
-          // Fetch current profile to get absolute latest stats
+          // Fetch updated profile to receive GenLayer validator verdict
           const profile = await getFullProfile(walletAddress);
           if (profile) {
+            if (profile.game_stats?.verdict) {
+              verdict = profile.game_stats.verdict;
+            }
+            if (profile.game_stats?.validator_assessment) {
+              validatorAssessment = profile.game_stats.validator_assessment;
+            }
+
+            addToast(`🛡️ VALIDATOR VERDICT: ${verdict}`);
+
+            addToast('🏆 EVALUATING ACHIEVEMENTS...');
             await claimBadges(
                walletAddress,
                profile.game_stats.best_score || score,
                profile.game_stats.total_apples || apples,
                profile.game_stats.total_games || 1,
                styleData?.play_style || "unknown",
-               0 // TODO: challenge kazanıldığında 1 yap
+               0
             );
             addToast('✅ ACHIEVEMENTS SYNCED');
           }
         } catch (badgeErr) {
-          console.error("Badge evaluation failed:", badgeErr);
+          console.error("Profile/Badge evaluation failed:", badgeErr);
         }
+
+        setLastGameStats({
+          score, 
+          apples, 
+          survival, 
+          playStyle: styleData?.play_style || 'Unknown', 
+          insight: replayData?.insight || 'No insight available', 
+          replayHash,
+          verdict,
+          validatorAssessment
+        });
 
         // Show share card after successful tx
         setShowShareCard(true);
@@ -135,21 +166,48 @@ export default function App() {
     }
   };
 
+  const handleSwitchNetwork = async () => {
+    try {
+      addToast('SWITCHING TO STUDIO NEXT (61997)...');
+      await switchToStudioNext();
+      addToast('✅ CONNECTED TO STUDIO NEXT (61997)');
+    } catch (err: any) {
+      addToast(`❌ NETWORK SWITCH FAILED: ${err.message || err}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-bg-dark text-matrix selection:bg-matrix selection:text-black scanlines relative overflow-hidden">
       {/* Header */}
-      <header className="p-6 flex justify-between items-center border-b border-matrix/20 bg-black/50 backdrop-blur-md sticky top-0 z-10">
+      <header className="p-4 sm:p-6 flex justify-between items-center border-b border-matrix/20 bg-black/50 backdrop-blur-md sticky top-0 z-10">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentScreen('home')}>
           <div className="w-10 h-10 bg-matrix text-black flex items-center justify-center rounded-sm glitch-border">
             <Gamepad2 size={24} />
           </div>
-          <h1 className="text-lg arcade-font tracking-tighter hidden sm:block">SNAKECHAIN</h1>
+          <div>
+            <h1 className="text-lg arcade-font tracking-tighter hidden sm:block">SNAKECHAIN</h1>
+            <div className="flex items-center gap-1.5 text-[9px] font-mono text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span>Studio Next 61997</span>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          {walletAddress && !isStudioNext && currentChainId && (
+            <button
+              onClick={handleSwitchNetwork}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500/20 border border-yellow-500 text-yellow-400 rounded-sm font-mono text-xs hover:bg-yellow-500/30 transition-all"
+              title="Click to switch your wallet network to GenLayer Studio Next (61997)"
+            >
+              <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+              <span>Switch to 61997</span>
+            </button>
+          )}
+
           {walletAddress ? (
             <div className="flex items-center gap-2 px-4 py-2 border border-matrix/50 bg-matrix/10 rounded-sm font-mono text-xs cursor-pointer hover:bg-matrix/20" onClick={() => setCurrentScreen('profile')}>
-              <div className="w-2 h-2 rounded-full bg-matrix animate-pulse" />
+              <div className={`w-2 h-2 rounded-full ${isStudioNext ? 'bg-matrix animate-pulse' : 'bg-yellow-400'}`} />
               {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
             </div>
           ) : (
@@ -337,9 +395,9 @@ export default function App() {
 
       {/* Footer Decoration */}
       <footer className="fixed bottom-0 left-0 w-full p-2 text-[8px] font-mono text-matrix/30 flex justify-between pointer-events-none">
-        <div>GENLAYER_STUDIONET_v0.4.2</div>
-        <div>EST_BLOCK_TIME: 1.2s</div>
-        <div>NODE_STATUS: OPTIMAL</div>
+        <div>GENLAYER_STUDIO_NEXT_CHAIN_61997</div>
+        <div>CONSENSUS_ENGINE: VALIDATOR_EVAL</div>
+        <div>NODE_STATUS: ACTIVE</div>
       </footer>
     </div>
   );

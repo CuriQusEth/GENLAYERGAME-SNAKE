@@ -1,5 +1,6 @@
 {
   "name": "SnakeChain: Proof of Play",
   "description": "A retro-cyberpunk blockchain Snake game where gameplay events trigger real smart contract transactions on GenLayer.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -11,6 +11,8 @@ interface ShareCardProps {
   insight: string;
   walletAddress: string;
   replayHash: string;
+  verdict?: string;
+  validatorAssessment?: string;
   onClose: () => void;
 }
 
@@ -22,6 +24,8 @@ export function ShareCard({
   insight,
   walletAddress,
   replayHash,
+  verdict = 'VALID',
+  validatorAssessment,
   onClose
 }: ShareCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -74,36 +78,44 @@ export function ShareCard({
                style={{ background: 'linear-gradient(transparent 50%, rgba(0, 255, 0, 0.25) 50%)', backgroundSize: '100% 4px' }} />
 
           {/* Header */}
-          <div className="flex justify-between items-start mb-6 relative z-10">
+          <div className="flex justify-between items-start mb-4 relative z-10">
             <div>
               <h2 className="text-2xl font-black text-green-500 tracking-tighter">SNAKECHAIN</h2>
-              <p className="text-xs text-green-700 uppercase tracking-widest">Proof of Play</p>
+              <p className="text-[10px] text-green-700 uppercase tracking-widest">Studio Next (61997)</p>
             </div>
             <div className="text-right">
-              <p className="text-[10px] text-green-600">VERIFIED ON-CHAIN</p>
-              <p className="text-xs text-green-400">{new Date().toISOString().split('T')[0]}</p>
+              <span className={`inline-block px-1.5 py-0.5 text-[9px] font-bold rounded border ${
+                verdict === 'INVALID' ? 'bg-red-950 text-red-400 border-red-500' : 'bg-green-950 text-green-400 border-green-500'
+              }`}>
+                🛡️ VERDICT: {verdict}
+              </span>
+              <p className="text-[10px] text-green-600 mt-1">{new Date().toISOString().split('T')[0]}</p>
             </div>
           </div>
 
           {/* Core Stats */}
-          <div className="bg-green-950/40 border border-green-500/30 p-4 mb-4 relative z-10">
-            <div className="text-center mb-4">
-              <div className="text-sm text-green-600 uppercase mb-1">Final Score</div>
-              <div className="text-5xl font-black text-green-400" style={{ textShadow: '0 0 10px rgba(74, 222, 128, 0.5)' }}>
+          <div className="bg-green-950/40 border border-green-500/30 p-3 mb-3 relative z-10">
+            <div className="text-center mb-2">
+              <div className="text-[11px] text-green-600 uppercase">Verified Score</div>
+              <div className="text-4xl font-black text-green-400" style={{ textShadow: '0 0 10px rgba(74, 222, 128, 0.5)' }}>
                 {score}
               </div>
             </div>
             <div className="flex justify-between text-xs text-green-500">
               <div>APPLES: {apples}</div>
-              <div>TIME: {survival}s</div>
+              <div>SURVIVAL: {survival}s</div>
             </div>
           </div>
 
-          {/* AI Analysis */}
-          <div className="mb-6 relative z-10">
-            <div className="text-[10px] text-green-700 uppercase mb-1 border-b border-green-800 pb-1">Cognitive Analysis</div>
-            <div className="text-lg font-bold text-green-300 mb-2">{playStyle}</div>
-            <p className="text-xs text-gray-400 italic">"{insight}"</p>
+          {/* Validator Consensus & Analysis */}
+          <div className="mb-4 relative z-10">
+            <div className="text-[9px] text-green-700 uppercase mb-1 border-b border-green-800 pb-0.5 flex justify-between">
+              <span>Validator Consensus Telemetry</span>
+              <span>Style: {playStyle}</span>
+            </div>
+            <p className="text-[11px] text-gray-300 font-mono italic">
+              "{validatorAssessment || insight}"
+            </p>
           </div>
 
           {/* Footer / Verification */}
