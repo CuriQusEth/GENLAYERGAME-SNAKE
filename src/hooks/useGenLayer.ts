@@ -432,26 +432,20 @@ export function useGenLayer() {
     }
   }, [getClient]);
 
-  const claimBadges = useCallback(async (
-    player: string,
-    bestScore: number,
-    totalApples: number,
-    totalGames: number,
-    playStyle: string,
-    hasWonChallenge: number
-  ) => {
+  const claimBadges = useCallback(async (player: string) => {
     setIsConnecting(true);
     try {
       const client = getClient();
+      // Badges are securely evaluated and granted ONLY by SnakeGame from verified on-chain state
       const tx = await client.writeContract({
-        address: BADGE_CONTRACT_ADDRESS,
+        address: CONTRACT_ADDRESS,
         account: player,
         functionName: 'claim_badges',
-        args: [player, BigInt(bestScore), BigInt(totalApples), BigInt(totalGames), playStyle, BigInt(hasWonChallenge)],
+        args: [player],
       });
       return tx;
     } catch (error: any) {
-      console.error('Error claiming badges:', error);
+      console.error('Error claiming badges from verified on-chain state:', error);
       throw parseTransactionError(error);
     } finally {
       setIsConnecting(false);
@@ -461,6 +455,21 @@ export function useGenLayer() {
   const getPlayerBadges = useCallback(async (address: string) => {
     try {
       const client = getClient();
+      // First attempt to read from SnakeGame (the authoritative source of verified badges)
+      try {
+        const result = await client.readContract({
+          address: CONTRACT_ADDRESS,
+          functionName: 'get_player_badges',
+          args: [address],
+        });
+        const badgeStr = result as string;
+        if (badgeStr !== undefined && badgeStr !== null) {
+          return badgeStr ? badgeStr.split(',').filter(Boolean) : [];
+        }
+      } catch (sgErr) {
+        // Fallback to legacy badge address if contract has not deployed new view yet
+      }
+
       const result = await client.readContract({
         address: BADGE_CONTRACT_ADDRESS,
         functionName: 'get_player_badges',
@@ -477,6 +486,16 @@ export function useGenLayer() {
   const getAllBadgesInfo = useCallback(async () => {
     try {
       const client = getClient();
+      try {
+        const result = await client.readContract({
+          address: CONTRACT_ADDRESS,
+          functionName: 'get_all_badges_info',
+        });
+        return JSON.parse(result as string);
+      } catch (sgErr) {
+        // Fallback
+      }
+
       const result = await client.readContract({
         address: BADGE_CONTRACT_ADDRESS,
         functionName: 'get_all_badges_info',
@@ -484,7 +503,13 @@ export function useGenLayer() {
       return JSON.parse(result as string);
     } catch (error) {
       console.error('Error fetching badge info:', error);
-      return [];
+      return [
+        { id: "first_blood", name: "First Blood", description: "First verified score on-chain", icon: "1" },
+        { id: "century_club", name: "Century Club", description: "Verified score 100 or higher", icon: "2" },
+        { id: "apple_hoarder", name: "Apple Hoarder", description: "Collect 50 apples in verified games", icon: "3" },
+        { id: "style_master", name: "Style Master", description: "Consensus verified play style", icon: "4" },
+        { id: "challenger", name: "Challenger", description: "Win a verified PvP challenge", icon: "5" }
+      ];
     }
   }, [getClient]);
 

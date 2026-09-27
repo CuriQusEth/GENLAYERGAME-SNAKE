@@ -129,16 +129,9 @@ export default function App() {
 
             addToast(`🛡️ VALIDATOR VERDICT: ${verdict}`);
 
-            addToast('🏆 EVALUATING ACHIEVEMENTS...');
-            await claimBadges(
-               walletAddress,
-               profile.game_stats.best_score || score,
-               profile.game_stats.total_apples || apples,
-               profile.game_stats.total_games || 1,
-               styleData?.play_style || "unknown",
-               0
-            );
-            addToast('✅ ACHIEVEMENTS SYNCED');
+            addToast('🏆 EVALUATING ACHIEVEMENTS (ON-CHAIN)...');
+            await claimBadges(walletAddress);
+            addToast('✅ ACHIEVEMENTS SYNCED FROM VERIFIED STATE');
           }
         } catch (badgeErr) {
           console.error("Profile/Badge evaluation failed:", badgeErr);

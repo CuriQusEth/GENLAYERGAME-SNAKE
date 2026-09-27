@@ -73,18 +73,8 @@ export const ChallengePanel: React.FC<ChallengePanelProps> = ({ walletAddress })
       // Eğer kazanan bu cüzdan ise Challenger rozetini aç
       if (winner && String(winner).toLowerCase() === walletAddress.toLowerCase()) {
         try {
-          const profile = await getFullProfile(walletAddress);
-          if (profile?.game_stats) {
-            await claimBadges(
-              walletAddress,
-              profile.game_stats.best_score || 0,
-              profile.game_stats.total_apples || 0,
-              profile.game_stats.total_games || 1,
-              profile.game_stats.play_style || "unknown",
-              1   // ← Challenger rozeti
-            );
-            alert('🏆 You won! Challenger badge unlocked!');
-          }
+          await claimBadges(walletAddress);
+          alert('🏆 You won! Challenger badge verified and claimed on-chain!');
         } catch (badgeErr) {
           console.error('Badge claim failed', badgeErr);
         }

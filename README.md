@@ -68,13 +68,67 @@ Connect your Web3 wallet (MetaMask, Rabby) to GenLayer Studio Next:
   - **Efficient**: Optimal path-finding with minimal redundant steps.
   - **Chaotic**: Unpredictable rapid direction changes and high-risk maneuvers.
 
-### 5. On-Chain Badges & Achievements
-Tracked and minted via `SnakeBadges.py`:
-- **First Blood**: Submit your first verified score on-chain.
-- **Century Club**: Attain a single-game score of 100+ points.
-- **Apple Hoarder**: Eat 50 cumulative apples across all sessions.
-- **Challenger**: Duel and defeat an opponent in 1v1 PvP.
-- **Style Master**: Complete cognitive playstyle analysis.
+### 5. On-Chain Badges & Verified Achievements
+Badges are governed by an **immutable verified on-chain state model**. The smart contract strictly forbids client-supplied statistics:
+- **First Blood**: Unlocked only after at least 1 gameplay run with a consensus verdict of **`VALID`**.
+- **Century Club**: Requires verified high score (`best_score >= 100`) recorded under a `VALID` consensus run.
+- **Apple Hoarder**: Requires cumulative apples (`total_apples >= 50`) collected in verified gameplay.
+- **Style Master**: Assigned based on the on-chain GenLayer validator cognitive classification.
+- **Challenger**: Requires winning an asynchronous 1v1 duel (`player_challenge_wins >= 1`), written exclusively by `resolve_challenge`.
+
+---
+
+## 🔒 Immutable Record Verification & Badge Security Architecture
+
+### 1. Problem Solved: Parameter Spoofing Prevention
+In naive designs, badge claiming methods trust client parameters (`best_score`, `total_apples`, `has_won_challenge`). This allows malicious actors to forge high scores, claim unearned badges, or misappropriate another player's address.
+
+In SnakeChain, **all badge eligibility is calculated strictly and solely from verified on-chain storage inside `SnakeGame.py`**. The caller cannot pass any metrics:
+```python
+# Secured signature: Only the player address is provided
+@gl.public.write
+def claim_badges(self, player: str) -> str:
+    verdict = self.player_verdict.get(player, "")
+    if verdict != "VALID":
+        return ""  # Unverified or INVALID run -> NO badges
+    ...
+```
+
+### 2. Immutable Source Comparison Model
+
+| Storage Record | Written By | Badge Logic Usage |
+| :--- | :--- | :--- |
+| `player_last_verified_score` | Only `submit_score` + `verdict == VALID` | Yes (verified history) |
+| `player_best_score` | Only `VALID` consensus branch | Yes (`century_club`) |
+| `player_verdict` | GenLayer AI Validator consensus | **Security Gate**: Must be `"VALID"` |
+| `player_challenge_wins` | Only `resolve_challenge` | Yes (`challenger`) |
+| Caller `best_score` / `apples` | Client request | **REJECTED (Removed)** |
+
+**Immutable Acceptance Invariant:**
+```text
+accepted_score(player) :=
+  if player_verdict[player] == "VALID"
+    then player_best_score[player]
+    else 0
+
+badge_eligible := accepted_score / verified apples / verified wins
+                ≠ caller_supplied_stats
+```
+
+### 3. Contract Integrity Test Suite (`contracts/test_badges_integrity.py`)
+A comprehensive test suite verifies the security gates:
+- `test_fake_score_cannot_earn_century_club`: Assert that fabricated scores without a VALID on-chain verdict cannot unlock `century_club` or `first_blood`.
+- `test_fake_win_cannot_earn_challenger`: Assert that players with 0 verified challenge wins cannot claim `challenger`.
+- `test_other_player_identity_cannot_steal_badges`: Assert that Player B cannot claim badges using Player A's verified achievements.
+- `test_legitimate_verified_record_earns_badges`: Assert that legitimate records signed off with `VALID` correctly unlock earned badges.
+- `test_invalid_submit_does_not_update_best_or_badges`: Assert that scores with an `INVALID` verdict are never committed to best score or badge eligibility.
+- `test_old_badges_contract_blocks_arbitrary_stats_call`: Assert that the legacy badge contract raises an exception and rejects arbitrary parameters.
+- `test_resolve_challenge_increments_winner_challenge_wins`: Assert that only contract-mediated duel resolution increments the challenge win counter.
+
+To run the verification suite:
+```bash
+python3 contracts/test_badges_integrity.py
+```
 
 ### 6. PvP Challenge Arena
 - Challenge any wallet address to a 1v1 asynchronous snake duel.

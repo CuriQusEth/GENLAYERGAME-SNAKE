@@ -55,6 +55,104 @@ h1, h2, h3, .arcade-font {
   animation: flicker 0.15s infinite;
 }
 
+/* Shiny Retro-Cyberpunk Badge Styles */
+@keyframes holoShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes badgeShimmer {
+  0% { transform: translateX(-160%) skewX(-20deg); }
+  100% { transform: translateX(260%) skewX(-20deg); }
+}
+
+@keyframes neonPulseGlow {
+  0%, 100% { filter: drop-shadow(0 0 8px currentColor) drop-shadow(0 0 16px currentColor); }
+  50% { filter: drop-shadow(0 0 14px currentColor) drop-shadow(0 0 28px currentColor); }
+}
+
+@keyframes cyberGlitchScan {
+  0% { top: -10%; opacity: 0.4; }
+  50% { opacity: 0.9; }
+  100% { top: 110%; opacity: 0.2; }
+}
+
+.holo-gradient-border {
+  background: linear-gradient(135deg, #00ffcc, #ff007f, #ffe600, #00ff41, #00bfff);
+  background-size: 300% 300%;
+  animation: holoShift 4s ease infinite;
+}
+
+.gold-gradient-border {
+  background: linear-gradient(135deg, #ffe066, #ffae00, #fff2a3, #d48800, #ffe066);
+  background-size: 300% 300%;
+  animation: holoShift 3s ease infinite;
+}
+
+.crimson-gradient-border {
+  background: linear-gradient(135deg, #ff1a75, #ff0033, #ff6699, #990022, #ff0055);
+  background-size: 300% 300%;
+  animation: holoShift 3s ease infinite;
+}
+
+.emerald-gradient-border {
+  background: linear-gradient(135deg, #00ff88, #00cc44, #66ffb2, #00802b, #00ff66);
+  background-size: 300% 300%;
+  animation: holoShift 3.5s ease infinite;
+}
+
+.purple-gradient-border {
+  background: linear-gradient(135deg, #b366ff, #8000ff, #e6b8ff, #4d0099, #9933ff);
+  background-size: 300% 300%;
+  animation: holoShift 3.5s ease infinite;
+}
+
+.shimmer-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: translateX(-160%) skewX(-20deg);
+  pointer-events: none;
+}
+
+.badge-card:hover .shimmer-layer {
+  animation: badgeShimmer 1.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.badge-card.unlocked .shimmer-layer-ambient {
+  animation: badgeShimmer 4s ease-in-out infinite;
+}
+
+.cyber-badge-clip {
+  clip-path: polygon(
+    0 10px, 
+    10px 0, 
+    calc(100% - 10px) 0, 
+    100% 10px, 
+    100% calc(100% - 10px), 
+    calc(100% - 10px) 100%, 
+    10px 100%, 
+    0 calc(100% - 10px)
+  );
+}
+
+.cyber-badge-sm-clip {
+  clip-path: polygon(
+    0 6px, 
+    6px 0, 
+    calc(100% - 6px) 0, 
+    100% 6px, 
+    100% calc(100% - 6px), 
+    calc(100% - 6px) 100%, 
+    6px 100%, 
+    0 calc(100% - 6px)
+  );
+}
+
 @keyframes flicker {
   0% { opacity: 0.97; }
   5% { opacity: 0.95; }

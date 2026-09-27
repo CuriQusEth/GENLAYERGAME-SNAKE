@@ -30,6 +30,7 @@ class SnakeGame(gl.Contract):
     challenge_winner:           TreeMap[str, str]
     challenge_commentary:       TreeMap[str, str]
     challenge_counter:          u256
+    player_challenge_wins:      TreeMap[str, u256]
 
     player_display_name: TreeMap[str, str]
     player_bio:          TreeMap[str, str]
@@ -236,12 +237,14 @@ Output strictly valid JSON with keys:
         verdict = self.player_verdict.get(player, "VALID")
         assessment = self.player_validator_assessment.get(player, "Not yet evaluated")
         last_verified = self.player_last_verified_score.get(player, u256(0))
+        wins = self.player_challenge_wins.get(player, u256(0))
 
         return (
             f'{{"address":"{player}",'
             f'"best_score":{best},'
             f'"total_apples":{apples},'
             f'"total_games":{games},'
+            f'"challenge_wins":{wins},'
             f'"play_style":"{style}",'
             f'"confidence":{confidence},'
             f'"pattern":"{pattern}",'
@@ -295,6 +298,11 @@ Output strictly valid JSON with keys:
         self.challenge_winner[cid] = winner
         self.challenge_status[cid] = "resolved"
         self.challenge_commentary[cid] = "A match for the ages."
+
+        if winner != "":
+            prev = self.player_challenge_wins.get(winner, u256(0))
+            self.player_challenge_wins[winner] = prev + u256(1)
+
         return winner
 
     @gl.public.view
@@ -353,6 +361,7 @@ Output strictly valid JSON with keys:
             
         clan_id = self.player_clan.get(player, "")
         refs = self.player_referral_count.get(player, u256(0))
+        wins = self.player_challenge_wins.get(player, u256(0))
 
         return (
             f'{{"address":"{player}",'
@@ -367,6 +376,7 @@ Output strictly valid JSON with keys:
             f'"best_score":{best},'
             f'"total_apples":{apples},'
             f'"total_games":{games},'
+            f'"challenge_wins":{wins},'
             f'"play_style":"{style}",'
             f'"confidence":{confidence},'
             f'"pattern":"{pattern}",'
@@ -378,6 +388,71 @@ Output strictly valid JSON with keys:
             f'"is_verified":{str(verdict == "VALID").lower()}'
             f'}}}}'
         )
+
+    @gl.public.write
+    def claim_badges(self, player: str) -> str:
+        """
+        Rozet uygunluğu SADECE doğrulanmış on-chain kayıtlardan okunur.
+        Çağıran skor, elma, galibiyet veya stil GÖNDEREMEZ.
+        """
+        verdict = self.player_verdict.get(player, "")
+        if verdict != "VALID":
+            return ""  # doğrulanmamış oyun → rozet yok
+
+        best = self.player_best_score.get(player, u256(0))
+        # best_score yalnızca VALID submit'lerde güncellendiği için güvenilir
+        apples = self.player_total_apples.get(player, u256(0))
+        games = self.player_total_games.get(player, u256(0))
+        style = self.player_play_style.get(player, "")
+        wins = self.player_challenge_wins.get(player, u256(0))
+
+        current = self.player_badges.get(player, "")
+        newly = ""
+
+        def _add(badge_id: str) -> None:
+            nonlocal current, newly
+            if current.find(badge_id) != -1:
+                return
+            current = badge_id if current == "" else current + "," + badge_id
+            newly = badge_id if newly == "" else newly + "," + badge_id
+
+        # First Blood: en az bir doğrulanmış (VALID) oyun
+        if games >= u256(1):
+            _add("first_blood")
+
+        # Century Club: doğrulanmış best_score >= 100
+        if best >= u256(100):
+            _add("century_club")
+
+        # Apple Hoarder: toplanan elma >= 50
+        if apples >= u256(50):
+            _add("apple_hoarder")
+
+        # Style Master: validator'ın yazdığı stil
+        if style != "" and style != "unknown":
+            _add("style_master")
+
+        # Challenger: yalnızca resolve_challenge'ın yazdığı win sayacı >= 1
+        if wins >= u256(1):
+            _add("challenger")
+
+        self.player_badges[player] = current
+        return newly
+
+    @gl.public.view
+    def get_player_badges(self, player: str) -> str:
+        return self.player_badges.get(player, "")
+
+    @gl.public.view
+    def get_all_badges_info(self) -> str:
+        result = "["
+        result = result + '{"id":"first_blood","name":"First Blood","description":"First verified score on-chain","icon":"1"},'
+        result = result + '{"id":"century_club","name":"Century Club","description":"Verified score 100 or higher","icon":"2"},'
+        result = result + '{"id":"apple_hoarder","name":"Apple Hoarder","description":"Collect 50 apples in verified games","icon":"3"},'
+        result = result + '{"id":"style_master","name":"Style Master","description":"Consensus verified play style","icon":"4"},'
+        result = result + '{"id":"challenger","name":"Challenger","description":"Win a verified PvP challenge","icon":"5"}'
+        result = result + "]"
+        return result
 
     @gl.public.write
     def create_clan(self, player: str, name: str, tag: str, description: str) -> str:

@@ -11,78 +11,12 @@ class SnakeBadges(gl.Contract):
         pass
 
     @gl.public.write
-    def claim_badges(
-        self,
-        player: str,
-        best_score: u256,
-        total_apples: u256,
-        total_games: u256,
-        play_style: str,
-        has_won_challenge: u256,
-    ) -> str:
-
-        current = self.player_badges.get(player, "")
-        newly = ""
-
-        # First Blood
-        if total_games >= u256(1):
-            if current.find("first_blood") == -1:
-                if current == "":
-                    current = "first_blood"
-                else:
-                    current = current + ",first_blood"
-                newly = "first_blood"
-
-        # Century Club
-        if best_score >= u256(100):
-            if current.find("century_club") == -1:
-                if current == "":
-                    current = "century_club"
-                else:
-                    current = current + ",century_club"
-                if newly == "":
-                    newly = "century_club"
-                else:
-                    newly = newly + ",century_club"
-
-        # Apple Hoarder
-        if total_apples >= u256(50):
-            if current.find("apple_hoarder") == -1:
-                if current == "":
-                    current = "apple_hoarder"
-                else:
-                    current = current + ",apple_hoarder"
-                if newly == "":
-                    newly = "apple_hoarder"
-                else:
-                    newly = newly + ",apple_hoarder"
-
-        # Style Master
-        if play_style != "unknown" and play_style != "":
-            if current.find("style_master") == -1:
-                if current == "":
-                    current = "style_master"
-                else:
-                    current = current + ",style_master"
-                if newly == "":
-                    newly = "style_master"
-                else:
-                    newly = newly + ",style_master"
-
-        # Challenger
-        if has_won_challenge == u256(1):
-            if current.find("challenger") == -1:
-                if current == "":
-                    current = "challenger"
-                else:
-                    current = current + ",challenger"
-                if newly == "":
-                    newly = "challenger"
-                else:
-                    newly = newly + ",challenger"
-
-        self.player_badges[player] = current
-        return newly
+    def claim_badges(self, player: str) -> str:
+        """
+        Guarded against fabricated statistics.
+        Badges can ONLY be claimed from SnakeGame verified on-chain state.
+        """
+        raise Exception("Use SnakeGame.claim_badges(player); badges read verified records only")
 
     @gl.public.view
     def get_player_badges(self, player: str) -> str:
